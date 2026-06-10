@@ -86,7 +86,7 @@ async function main() {
     if (createResult.results?.arl) {
       const arl = createResult.results.arl;
       log(`\n========== ARL: ${arl} ==========`);
-      fs.writeFileSync('/tmp/deezer-register/result.json', JSON.stringify({
+      fs.writeFileSync('/home/michde/Documenti/d33z3r/result.json', JSON.stringify({
         email, password, username, arl, timestamp: new Date().toISOString()
       }, null, 2));
       log('Saved to result.json');
@@ -118,7 +118,7 @@ async function main() {
       if (createResult2.results?.arl) {
         const arl = createResult2.results.arl;
         log(`\n========== ARL: ${arl} ==========`);
-        fs.writeFileSync('/tmp/deezer-register/result.json', JSON.stringify({
+        fs.writeFileSync('/home/michde/Documenti/d33z3r/result.json', JSON.stringify({
           email: email2, password, username, arl, timestamp: new Date().toISOString()
         }, null, 2));
       }
