@@ -9,8 +9,6 @@ env/
 .env
 
 # Project specific
-arl.txt
-result.json
 music/
 *.deb
 
