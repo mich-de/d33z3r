@@ -6,32 +6,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFFA238FF),
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFF7B1FD6),
+    primary = Color(0xFF1DB954),
+    onPrimary = Color.Black,
+    primaryContainer = Color(0xFF14803A),
     onPrimaryContainer = Color.White,
-    secondary = Color(0xFFFF2D87),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFCC1A6B),
+    secondary = Color(0xFF19E68C),
+    onSecondary = Color.Black,
+    secondaryContainer = Color(0xFF119E5F),
     onSecondaryContainer = Color.White,
     tertiary = Color(0xFF1DB954),
-    onTertiary = Color.White,
-    background = Color(0xFF0A0A0F),
+    onTertiary = Color.Black,
+    background = Color(0xFF040404),
     onBackground = Color.White,
-    surface = Color(0xFF12121A),
+    surface = Color(0xFF121212),
     onSurface = Color.White,
-    surfaceVariant = Color(0xFF1E1E2E),
+    surfaceVariant = Color(0xFF282828),
     onSurfaceVariant = Color(0xFFB3B3B3),
-    surfaceContainerLow = Color(0xFF141420),
-    surfaceContainer = Color(0xFF1A1A28),
-    surfaceContainerHigh = Color(0xFF222236),
-    outline = Color(0xFF333344),
-    outlineVariant = Color(0xFF444455)
+    surfaceContainerLow = Color(0xFF151515),
+    surfaceContainer = Color(0xFF181818),
+    surfaceContainerHigh = Color(0xFF242424),
+    outline = Color(0xFF3E3E3E),
+    outlineVariant = Color(0xFF4F4F4F)
 )
 
 @Composable
 fun D33Z3RTheme(
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
