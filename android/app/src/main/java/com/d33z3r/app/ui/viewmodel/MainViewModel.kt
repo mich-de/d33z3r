@@ -1,7 +1,10 @@
 package com.d33z3r.app.ui.viewmodel
 
 import android.app.Application
+import android.content.ContentValues
 import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -52,6 +55,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _playerError = MutableStateFlow<String?>(null)
     val playerError: StateFlow<String?> = _playerError
+
+    // Album, playlist, artist details
+    private val _albumDetails = MutableStateFlow<AlbumResponse?>(null)
+    val albumDetails: StateFlow<AlbumResponse?> = _albumDetails
+
+    private val _playlistDetails = MutableStateFlow<AlbumResponse?>(null)
+    val playlistDetails: StateFlow<AlbumResponse?> = _playlistDetails
+
+    private val _artistDetails = MutableStateFlow<ArtistResponse?>(null)
+    val artistDetails: StateFlow<ArtistResponse?> = _artistDetails
+
+    // Download feedback
+    private val _downloadProgress = MutableStateFlow<String?>(null)
+    val downloadProgress: StateFlow<String?> = _downloadProgress
+
+    // Selected country shared state for Charts Screen
+    val selectedCountryForCharts = MutableStateFlow("worldwide")
 
     init {
         initClient()
@@ -128,6 +148,54 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun loadAlbumDetails(albumId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                _albumDetails.value = deezer?.getAlbum(albumId)
+            } catch (e: Exception) {
+                Log.e(TAG, "loadAlbumDetails failed", e)
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun clearAlbumDetails() {
+        _albumDetails.value = null
+    }
+
+    fun loadPlaylistDetails(playlistId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                _playlistDetails.value = deezer?.getPlaylist(playlistId)
+            } catch (e: Exception) {
+                Log.e(TAG, "loadPlaylistDetails failed", e)
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun clearPlaylistDetails() {
+        _playlistDetails.value = null
+    }
+
+    fun loadArtistDetails(artistId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isLoading.value = true
+            try {
+                _artistDetails.value = deezer?.getArtist(artistId)
+            } catch (e: Exception) {
+                Log.e(TAG, "loadArtistDetails failed", e)
+            }
+            _isLoading.value = false
+        }
+    }
+
+    fun clearArtistDetails() {
+        _artistDetails.value = null
+    }
+
     fun playTrack(track: Track) {
         Log.d(TAG, "playTrack: ${track.title} (id=${track.id})")
         _currentTrack.value = track
@@ -197,6 +265,131 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             player.resume()
             _isPlaying.value = true
+        }
+    }
+
+    // MediaStore Saving Logic
+    private fun saveToDownloads(filename: String, subfolder: String?, data: ByteArray): Boolean {
+        val resolver = getApplication<Application>().contentResolver
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "audio/mpeg")
+            val relativePath = if (subfolder != null) {
+                "${Environment.DIRECTORY_DOWNLOADS}/D33Z3R/$subfolder"
+            } else {
+                "${Environment.DIRECTORY_DOWNLOADS}/D33Z3R"
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            }
+        }
+
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues) ?: return false
+        return try {
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                outputStream.write(data)
+                true
+            } ?: false
+        } catch (e: Exception) {
+            resolver.delete(uri, null, null)
+            Log.e(TAG, "Error saving to Downloads", e)
+            false
+        }
+    }
+
+    fun downloadTrack(track: Track) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _downloadProgress.value = "Scarico ${track.title}..."
+            try {
+                val url = deezer?.getTrackUrl(track.id)
+                if (url != null) {
+                    val encrypted = downloadEncrypted(url)
+                    if (encrypted != null && encrypted.size > 16) {
+                        val key = BlowfishDecryptor.generateKey(track.id.toString())
+                        val decrypted = BlowfishDecryptor.decryptStream(key, encrypted)
+                        val safeTitle = track.title.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+                        val safeArtist = track.artist.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+                        val filename = "$safeArtist - $safeTitle.mp3"
+                        val success = saveToDownloads(filename, null, decrypted)
+                        if (success) {
+                            _downloadProgress.value = "Scaricato: $safeTitle"
+                        } else {
+                            _downloadProgress.value = "Salvataggio fallito"
+                        }
+                    } else {
+                        _downloadProgress.value = "Download fallito"
+                    }
+                } else {
+                    _downloadProgress.value = "Traccia non disponibile"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "downloadTrack error", e)
+                _downloadProgress.value = "Errore durante il download"
+            }
+            delay(3000)
+            _downloadProgress.value = null
+        }
+    }
+
+    fun downloadAlbum(album: Album, tracks: List<Track>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val total = tracks.size
+            val safeAlbumTitle = album.title.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+            val safeArtist = album.artist.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+            val subfolder = "$safeArtist - $safeAlbumTitle"
+
+            tracks.forEachIndexed { index, track ->
+                _downloadProgress.value = "Scarico album... (${index + 1}/$total): ${track.title}"
+                try {
+                    val url = deezer?.getTrackUrl(track.id)
+                    if (url != null) {
+                        val encrypted = downloadEncrypted(url)
+                        if (encrypted != null && encrypted.size > 16) {
+                            val key = BlowfishDecryptor.generateKey(track.id.toString())
+                            val decrypted = BlowfishDecryptor.decryptStream(key, encrypted)
+                            val safeTitle = track.title.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+                            val filename = "${String.format("%02d", index + 1)} - $safeTitle.mp3"
+                            saveToDownloads(filename, subfolder, decrypted)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error downloading album track", e)
+                }
+            }
+            _downloadProgress.value = "Album scaricato!"
+            delay(3000)
+            _downloadProgress.value = null
+        }
+    }
+
+    fun downloadPlaylist(playlistName: String, tracks: List<Track>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val total = tracks.size
+            val safePlaylistName = playlistName.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+            val subfolder = "Playlist - $safePlaylistName"
+
+            tracks.forEachIndexed { index, track ->
+                _downloadProgress.value = "Scarico playlist... (${index + 1}/$total): ${track.title}"
+                try {
+                    val url = deezer?.getTrackUrl(track.id)
+                    if (url != null) {
+                        val encrypted = downloadEncrypted(url)
+                        if (encrypted != null && encrypted.size > 16) {
+                            val key = BlowfishDecryptor.generateKey(track.id.toString())
+                            val decrypted = BlowfishDecryptor.decryptStream(key, encrypted)
+                            val safeTitle = track.title.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+                            val safeArtist = track.artist.replace("[\\\\/:*?\"<>|]".toRegex(), "_")
+                            val filename = "${String.format("%02d", index + 1)} - $safeArtist - $safeTitle.mp3"
+                            saveToDownloads(filename, subfolder, decrypted)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error downloading playlist track", e)
+                }
+            }
+            _downloadProgress.value = "Playlist scaricata!"
+            delay(3000)
+            _downloadProgress.value = null
         }
     }
 

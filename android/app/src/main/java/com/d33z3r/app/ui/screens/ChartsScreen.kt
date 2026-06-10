@@ -14,6 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Download
 import com.d33z3r.app.deezer.Track
 import com.d33z3r.app.ui.viewmodel.MainViewModel
 
@@ -22,7 +24,7 @@ fun ChartsScreen(
     viewModel: MainViewModel,
     onTrackClick: (Track) -> Unit
 ) {
-    var selectedCountry by remember { mutableStateOf("worldwide") }
+    val selectedCountry by viewModel.selectedCountryForCharts.collectAsState()
     val chartTracks by viewModel.chartTracks.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
@@ -52,7 +54,7 @@ fun ChartsScreen(
             countries.forEach { (code, name, flag) ->
                 Tab(
                     selected = selectedCountry == code,
-                    onClick = { selectedCountry = code },
+                    onClick = { viewModel.selectedCountryForCharts.value = code },
                     text = { Text("$flag $name") }
                 )
             }
@@ -72,7 +74,8 @@ fun ChartsScreen(
                 items(chartTracks) { track ->
                     TrackListItem(
                         track = track,
-                        onClick = { onTrackClick(track) }
+                        onClick = { onTrackClick(track) },
+                        onDownloadClick = { viewModel.downloadTrack(track) }
                     )
                 }
             }
@@ -83,7 +86,8 @@ fun ChartsScreen(
 @Composable
 fun TrackListItem(
     track: Track,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDownloadClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -127,5 +131,13 @@ fun TrackListItem(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(modifier = Modifier.width(8.dp))
+        IconButton(onClick = onDownloadClick) {
+            Icon(
+                imageVector = Icons.Default.Download,
+                contentDescription = "Scarica Traccia",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

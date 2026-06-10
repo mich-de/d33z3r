@@ -3,6 +3,7 @@ package com.d33z3r.app.ui.navigation
 import androidx.compose.animation.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -126,7 +127,13 @@ fun D33Z3RNavHost(viewModel: MainViewModel) {
                 when (currentScreen) {
                     Screen.Home -> HomeScreen(
                         viewModel = viewModel,
-                        onTrackClick = { track -> viewModel.playTrack(track) }
+                        onTrackClick = { track -> viewModel.playTrack(track) },
+                        onAlbumClick = { album -> viewModel.loadAlbumDetails(album.id) },
+                        onPlaylistClick = { playlist -> viewModel.loadPlaylistDetails(playlist.id) },
+                        onChartClick = { countryCode ->
+                            viewModel.selectedCountryForCharts.value = countryCode
+                            currentScreen = Screen.Charts
+                        }
                     )
                     Screen.Charts -> ChartsScreen(
                         viewModel = viewModel,
@@ -134,10 +141,108 @@ fun D33Z3RNavHost(viewModel: MainViewModel) {
                     )
                     Screen.Search -> SearchScreen(
                         viewModel = viewModel,
-                        onTrackClick = { track -> viewModel.playTrack(track) }
+                        onTrackClick = { track -> viewModel.playTrack(track) },
+                        onArtistClick = { artist -> viewModel.loadArtistDetails(artist.id) },
+                        onAlbumClick = { album -> viewModel.loadAlbumDetails(album.id) },
+                        onPlaylistClick = { playlist -> viewModel.loadPlaylistDetails(playlist.id) }
                     )
                     Screen.Library -> LibraryScreen()
                     Screen.Settings -> SettingsScreen()
+                }
+
+                // Download floating progress banner
+                val downloadProgress by viewModel.downloadProgress.collectAsState()
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = downloadProgress != null,
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+                    exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = downloadProgress ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+
+                // Details Bottom Sheets
+                val albumDetails by viewModel.albumDetails.collectAsState()
+                val playlistDetails by viewModel.playlistDetails.collectAsState()
+                val artistDetails by viewModel.artistDetails.collectAsState()
+
+                if (albumDetails != null) {
+                    ModalBottomSheet(
+                        onDismissRequest = { viewModel.clearAlbumDetails() },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ) {
+                        AlbumDetailSheet(
+                            response = albumDetails!!,
+                            onTrackClick = { track ->
+                                viewModel.playTrack(track)
+                                viewModel.clearAlbumDetails()
+                            },
+                            onDownloadTrack = { track -> viewModel.downloadTrack(track) },
+                            onDownloadAlbum = { album, tracks -> viewModel.downloadAlbum(album, tracks) }
+                        )
+                    }
+                }
+
+                if (playlistDetails != null) {
+                    ModalBottomSheet(
+                        onDismissRequest = { viewModel.clearPlaylistDetails() },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ) {
+                        PlaylistDetailSheet(
+                            response = playlistDetails!!,
+                            onTrackClick = { track ->
+                                viewModel.playTrack(track)
+                                viewModel.clearPlaylistDetails()
+                            },
+                            onDownloadTrack = { track -> viewModel.downloadTrack(track) },
+                            onDownloadPlaylist = { name, tracks -> viewModel.downloadPlaylist(name, tracks) }
+                        )
+                    }
+                }
+
+                if (artistDetails != null) {
+                    ModalBottomSheet(
+                        onDismissRequest = { viewModel.clearArtistDetails() },
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ) {
+                        ArtistDetailSheet(
+                            response = artistDetails!!,
+                            onTrackClick = { track ->
+                                viewModel.playTrack(track)
+                                viewModel.clearArtistDetails()
+                            },
+                            onDownloadTrack = { track -> viewModel.downloadTrack(track) },
+                            onAlbumClick = { album ->
+                                viewModel.loadAlbumDetails(album.id)
+                                viewModel.clearArtistDetails()
+                            }
+                        )
+                    }
                 }
             }
         }

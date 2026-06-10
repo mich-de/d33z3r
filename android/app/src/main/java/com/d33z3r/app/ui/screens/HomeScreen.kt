@@ -31,7 +31,10 @@ import com.d33z3r.app.ui.viewmodel.MainViewModel
 @Composable
 fun HomeScreen(
     viewModel: MainViewModel,
-    onTrackClick: (Track) -> Unit
+    onTrackClick: (Track) -> Unit,
+    onAlbumClick: (Album) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
+    onChartClick: (String) -> Unit
 ) {
     val trending by viewModel.trending.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -115,7 +118,7 @@ fun HomeScreen(
                     Triple("japan", "Japan", "🇯🇵")
                 )
                 items(countries) { (code, name, flag) ->
-                    ChartCard(code, flag, name)
+                    ChartCard(code, flag, name, onClick = { onChartClick(code) })
                 }
             }
         }
@@ -127,7 +130,11 @@ fun HomeScreen(
                     SectionHeader("Classifica")
                 }
                 items(tracks.take(if (isTablet) 10 else 8)) { track ->
-                    TrackItem(track = track, onClick = { onTrackClick(track) })
+                    TrackItem(
+                        track = track,
+                        onClick = { onTrackClick(track) },
+                        onDownloadClick = { viewModel.downloadTrack(track) }
+                    )
                 }
             }
         }
@@ -141,7 +148,7 @@ fun HomeScreen(
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(albums.take(if (isTablet) 8 else 6)) { album ->
-                            AlbumCard(album)
+                            AlbumCard(album, onClick = { onAlbumClick(album) })
                         }
                     }
                 }
@@ -157,7 +164,7 @@ fun HomeScreen(
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(playlists.take(if (isTablet) 8 else 6)) { playlist ->
-                            PlaylistCard(playlist)
+                            PlaylistCard(playlist, onClick = { onPlaylistClick(playlist) })
                         }
                     }
                 }
@@ -173,7 +180,7 @@ fun HomeScreen(
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(albums.take(if (isTablet) 8 else 6)) { album ->
-                            AlbumCard(album)
+                            AlbumCard(album, onClick = { onAlbumClick(album) })
                         }
                     }
                 }
@@ -206,12 +213,12 @@ fun SectionHeader(title: String) {
 }
 
 @Composable
-fun ChartCard(code: String, flag: String, name: String) {
+fun ChartCard(code: String, flag: String, name: String, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .width(140.dp)
             .height(100.dp)
-            .clickable { },
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -238,7 +245,8 @@ fun ChartCard(code: String, flag: String, name: String) {
 @Composable
 fun TrackItem(
     track: Track,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDownloadClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -277,13 +285,23 @@ fun TrackItem(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(modifier = Modifier.width(8.dp))
+        IconButton(onClick = onDownloadClick) {
+            Icon(
+                imageVector = Icons.Default.Download,
+                contentDescription = "Scarica Traccia",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
 @Composable
-fun AlbumCard(album: Album) {
+fun AlbumCard(album: Album, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.width(160.dp),
+        modifier = Modifier
+            .width(160.dp)
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -320,9 +338,11 @@ fun AlbumCard(album: Album) {
 }
 
 @Composable
-fun PlaylistCard(playlist: Playlist) {
+fun PlaylistCard(playlist: Playlist, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.width(160.dp),
+        modifier = Modifier
+            .width(160.dp)
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh

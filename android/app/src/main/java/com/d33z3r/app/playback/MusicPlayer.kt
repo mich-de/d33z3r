@@ -9,6 +9,8 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 
 class MusicPlayer(private val context: Context) {
@@ -58,7 +60,13 @@ class MusicPlayer(private val context: Context) {
 
     fun play(url: String) {
         if (exoPlayer == null) {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build()
             exoPlayer = ExoPlayer.Builder(context).build().apply {
+                setAudioAttributes(audioAttributes, true)
+
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         when (playbackState) {

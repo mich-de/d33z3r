@@ -30,7 +30,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun SearchScreen(
     viewModel: MainViewModel,
-    onTrackClick: (Track) -> Unit
+    onTrackClick: (Track) -> Unit,
+    onArtistClick: (Artist) -> Unit,
+    onAlbumClick: (Album) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     val searchResults by viewModel.searchResults.collectAsState()
@@ -91,7 +94,7 @@ fun SearchScreen(
                         item {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 items(artists) { artist ->
-                                    ArtistCard(artist)
+                                    ArtistCard(artist, onClick = { onArtistClick(artist) })
                                 }
                             }
                         }
@@ -111,7 +114,7 @@ fun SearchScreen(
                         item {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 items(albums) { album ->
-                                    AlbumCard(album)
+                                    AlbumCard(album, onClick = { onAlbumClick(album) })
                                 }
                             }
                         }
@@ -129,7 +132,7 @@ fun SearchScreen(
                             )
                         }
                         items(playlists) { playlist ->
-                            PlaylistItem(playlist)
+                            PlaylistItem(playlist, onClick = { onPlaylistClick(playlist) })
                         }
                     }
                 }
@@ -145,7 +148,11 @@ fun SearchScreen(
                             )
                         }
                         items(tracks) { track ->
-                            TrackItem(track = track, onClick = { onTrackClick(track) })
+                            TrackItem(
+                                track = track,
+                                onClick = { onTrackClick(track) },
+                                onDownloadClick = { viewModel.downloadTrack(track) }
+                            )
                         }
                     }
                 }
@@ -155,9 +162,11 @@ fun SearchScreen(
 }
 
 @Composable
-fun ArtistCard(artist: Artist) {
+fun ArtistCard(artist: Artist, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.width(120.dp),
+        modifier = Modifier
+            .width(120.dp)
+            .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
@@ -186,11 +195,11 @@ fun ArtistCard(artist: Artist) {
 }
 
 @Composable
-fun PlaylistItem(playlist: Playlist) {
+fun PlaylistItem(playlist: Playlist, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable(onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -475,44 +475,50 @@ object BlowfishDecryptor {
 
     fun generateKey(trackId: String): ByteArray {
         val md5 = MessageDigest.getInstance("MD5")
-        val key = md5.digest(trackId.toByteArray())
-        val secret = BLOWFISH_SECRET.toByteArray()
-
+        val digest = md5.digest(trackId.toByteArray())
+        val idMd5 = digest.joinToString("") { "%02x".format(it) }
+        
+        val secret = BLOWFISH_SECRET
         val generatedKey = ByteArray(16)
         for (i in 0 until 16) {
-            generatedKey[i] = (key[i].toInt() xor secret[i % secret.size].toInt()).toByte()
+            val c1 = idMd5[i].code
+            val c2 = idMd5[i + 16].code
+            val s = secret[i].code
+            generatedKey[i] = (c1 xor c2 xor s).toByte()
         }
         return generatedKey
     }
 
-    fun decryptChunk(key: ByteArray, data: ByteArray, offset: Int = 0): ByteArray {
-        val iv = ByteArray(8)
-        for (i in 0 until 8) {
-            iv[i] = if (offset + i < data.size) data[offset + i] else 0
-        }
-
-        val cipher = Cipher.getInstance("Blowfish/CBC/PKCS5Padding")
+    fun decryptChunk(key: ByteArray, data: ByteArray): ByteArray {
+        val iv = byteArrayOf(0, 1, 2, 3, 4, 5, 6, 7)
+        val cipher = Cipher.getInstance("Blowfish/CBC/NoPadding")
         val keySpec = SecretKeySpec(key, "Blowfish")
         val ivSpec = IvParameterSpec(iv)
         cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec)
-
-        val input = data.copyOfRange(offset + 8, minOf(offset + CHUNK_SIZE, data.size))
-        return cipher.doFinal(input)
+        return cipher.doFinal(data)
     }
 
     fun decryptStream(key: ByteArray, encryptedData: ByteArray): ByteArray {
-        val result = mutableListOf<Byte>()
+        val result = java.io.ByteArrayOutputStream()
         var offset = 0
 
         while (offset < encryptedData.size) {
-            val chunkSize = minOf(CHUNK_SIZE, encryptedData.size - offset)
-            val chunk = encryptedData.copyOfRange(offset, offset + chunkSize)
+            val remaining = encryptedData.size - offset
+            val currentChunkSize = minOf(CHUNK_SIZE, remaining)
 
-            if (chunk.size >= 16) {
-                val decrypted = decryptChunk(key, chunk, 0)
-                result.addAll(decrypted.toList())
+            if (currentChunkSize >= 2048) {
+                // Decrypt only the first 2048 bytes of the 6144-byte block
+                val toDecrypt = encryptedData.copyOfRange(offset, offset + 2048)
+                val decrypted = decryptChunk(key, toDecrypt)
+                result.write(decrypted)
+
+                // Write the remaining 4096 bytes (or whatever is left in this chunk) as-is
+                if (currentChunkSize > 2048) {
+                    result.write(encryptedData, offset + 2048, currentChunkSize - 2048)
+                }
             } else {
-                result.addAll(chunk.toList())
+                // Write the rest as-is if chunk is smaller than 2048 bytes
+                result.write(encryptedData, offset, currentChunkSize)
             }
 
             offset += CHUNK_SIZE
