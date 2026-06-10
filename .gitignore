@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+.env
+
+# Project specific
+arl.txt
+result.json
+music/
+*.deb
+
+# System / IDE
+.DS_Store
+.vscode/
+.idea/

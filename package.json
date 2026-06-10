@@ -1,0 +1,12 @@
+{
+  "name": "d33z3r-register",
+  "version": "1.0.0",
+  "description": "Deezer automated registration script using Playwright",
+  "main": "register-final.js",
+  "scripts": {
+    "start": "node register-final.js"
+  },
+  "dependencies": {
+    "playwright": "^1.44.0"
+  }
+}
